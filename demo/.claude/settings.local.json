@@ -1,0 +1,45 @@
+{
+  "env": {
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(yarn:*)",
+      "Bash(xargs sed:*)",
+      "Bash(find:*)",
+      "Bash(npm run dev:*)",
+      "Bash(dir:*)",
+      "Bash(sed:*)",
+      "Bash(while read:*)",
+      "Bash(do echo \"$file\")",
+      "Bash(done)",
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run:*)",
+      "Bash(npx vue-cli-service lint:*)",
+      "Bash(timeout:*)",
+      "WebSearch",
+      "Bash(node extract-button-permissions.js:*)",
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(node:*)",
+      "Skill(zcf:precommit)",
+      "Bash(pip:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(npm --version:*)",
+      "Bash(python:*)",
+      "Bash(./venv/Scripts/pip install:*)",
+      "Bash(./venv/Scripts/python:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
