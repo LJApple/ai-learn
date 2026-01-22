@@ -752,13 +752,13 @@ export default function HomePage() {
                               </div>
                               <div className={cn(
                                 "flex items-center gap-1.5 font-medium",
-                                doc.status === "ready" ? "text-emerald-600" : "text-amber-600"
+                                doc.status === "indexed" ? "text-emerald-600" : "text-amber-600"
                               )}>
                                 <span className={cn(
                                   "h-1.5 w-1.5 rounded-full",
-                                  doc.status === "ready" ? "bg-emerald-600" : "bg-amber-600 animate-pulse"
+                                  doc.status === "indexed" ? "bg-emerald-600" : "bg-amber-600 animate-pulse"
                                 )} />
-                                {doc.status === "ready" ? "已就绪" : "处理中"}
+                                {doc.status === "indexed" ? "已就绪" : "处理中"}
                               </div>
                             </div>
                           </CardContent>
