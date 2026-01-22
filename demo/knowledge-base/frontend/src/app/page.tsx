@@ -124,8 +124,8 @@ export default function HomePage() {
     try {
       const response = await chatApi.sendMessage(query, currentConversation || undefined, {
         top_k: 10,
-        score_threshold: 0.7,
-        use_rerank: true,
+        score_threshold: 0.3,
+        use_rerank: false,
       })
 
       const answer = response.answer

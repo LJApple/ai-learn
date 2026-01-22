@@ -37,7 +37,11 @@
       "Bash(./venv/Scripts/pip install:*)",
       "Bash(./venv/Scripts/python:*)",
       "Bash(npx shadcn@latest init:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(nvidia-smi:*)"
     ],
     "deny": [],
     "ask": []

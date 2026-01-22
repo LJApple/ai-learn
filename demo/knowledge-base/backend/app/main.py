@@ -34,6 +34,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.services.vector import milvus_service
     milvus_service.connect()
 
+    # Pre-load embedding model to avoid first-request delay (in background)
+    import asyncio
+    import logging
+
+    async def preload_models():
+        try:
+            logging.info("Pre-loading embedding model in background...")
+            from app.services.llm import embedding_service
+            _ = await embedding_service.aencode("初始化")
+            logging.info("Embedding model loaded successfully")
+        except Exception as e:
+            logging.error(f"Failed to preload embedding model: {e}")
+
+    # Start background task without blocking startup
+    asyncio.create_task(preload_models())
+
     yield
 
     # Shutdown
