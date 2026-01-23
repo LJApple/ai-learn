@@ -21,6 +21,7 @@ api.interceptors.request.use((config) => {
 export interface ChatMessage {
   role: "user" | "assistant"
   content: string
+  sources?: Source[]
 }
 
 export interface Source {
@@ -28,6 +29,9 @@ export interface Source {
   chunk_id?: string
   score: number
   rerank_score?: number
+  title?: string
+  html_content?: string
+  has_images?: boolean
 }
 
 export interface ChatResponse {

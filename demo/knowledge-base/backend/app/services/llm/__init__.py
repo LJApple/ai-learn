@@ -18,7 +18,6 @@ class EmbeddingService:
     def __init__(self) -> None:
         """Initialize embedding service."""
         self.model_name = settings.EMBEDDING_MODEL
-        self.device = settings.EMBEDDING_DEVICE
         self.batch_size = settings.EMBEDDING_BATCH_SIZE
         self._model: SentenceTransformer | None = None
 
@@ -26,10 +25,8 @@ class EmbeddingService:
     def model(self) -> SentenceTransformer:
         """Get lazy-loaded model."""
         if self._model is None:
-            self._model = SentenceTransformer(
-                self.model_name,
-                device=self.device,
-            )
+            # Load model - let SentenceTransformer handle device detection
+            self._model = SentenceTransformer(self.model_name)
         return self._model
 
     def encode(
@@ -90,7 +87,6 @@ class RerankService:
     def __init__(self) -> None:
         """Initialize rerank service."""
         self.model_name = settings.RERANK_MODEL
-        self.device = settings.RERANK_DEVICE
         self.top_k = settings.RERANK_TOP_K
         self._model: torch.nn.Module | None = None
 
@@ -99,10 +95,8 @@ class RerankService:
         """Get lazy-loaded model."""
         if self._model is None:
             from sentence_transformers import CrossEncoder
-            self._model = CrossEncoder(
-                self.model_name,
-                device=self.device,
-            )
+            # Load model - let CrossEncoder handle device detection
+            self._model = CrossEncoder(self.model_name)
         return self._model
 
     def rerank(

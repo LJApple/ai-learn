@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -47,7 +48,7 @@ export default function HomePage() {
   // State
   const [query, setQuery] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [sources, setSources] = useState<Source[]>([])
+  const [sourcesMap, setSourcesMap] = useState<Record<number, Source[]>>({})
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<"chat" | "documents">("chat")
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -62,6 +63,8 @@ export default function HomePage() {
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [feedbackMap, setFeedbackMap] = useState<Record<string, 1 | -1>>({})
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [sourcesSheetOpen, setSourcesSheetOpen] = useState(false)
+  const [currentSourcesIndex, setCurrentSourcesIndex] = useState<number | null>(null)
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -116,10 +119,10 @@ export default function HomePage() {
     setMessages((prev) => [...prev, userMessage])
     setQuery("")
     if (textareaRef.current) textareaRef.current.style.height = "auto"
-    
+
     setLoading(true)
     setStreamingAnswer("")
-    setSources([])
+    setSourcesMap({})
 
     try {
       const response = await chatApi.sendMessage(query, currentConversation || undefined, {
@@ -135,12 +138,13 @@ export default function HomePage() {
         setStreamingAnswer((prev) => prev + answer[i])
       }
 
+      const assistantIndex = messages.length + 1 // Current messages length + 1 for user message
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: answer },
       ])
       setStreamingAnswer("")
-      setSources(response.sources)
+      setSourcesMap((prev) => ({ ...prev, [assistantIndex]: response.sources }))
 
       if (response.conversation_id && response.conversation_id !== currentConversation) {
         setCurrentConversation(response.conversation_id)
@@ -161,7 +165,9 @@ export default function HomePage() {
     setCurrentConversation(null)
     setStreamingAnswer("")
     setQuery("")
-    setSources([])
+    setSourcesMap({})
+    setCurrentSourcesIndex(null)
+    setSourcesSheetOpen(false)
     if (window.innerWidth < 1024) setSidebarOpen(false)
   }
 
@@ -170,7 +176,18 @@ export default function HomePage() {
       const history = await chatApi.getConversation(id)
       setMessages(history)
       setCurrentConversation(id)
-      setSources([])
+      setCurrentSourcesIndex(null)
+      setSourcesSheetOpen(false)
+
+      // Restore sources from history
+      const newSourcesMap: Record<number, Source[]> = {}
+      history.forEach((msg, index) => {
+        if (msg.role === "assistant" && msg.sources && msg.sources.length > 0) {
+          newSourcesMap[index] = msg.sources
+        }
+      })
+      setSourcesMap(newSourcesMap)
+
       if (window.innerWidth < 1024) setSidebarOpen(false)
     } catch (error) {
       console.error("Failed to load conversation:", error)
@@ -285,6 +302,11 @@ export default function HomePage() {
   const handleFeedback = (messageIndex: number, feedback: 1 | -1) => {
     const messageId = `${currentConversation || "new"}-${messageIndex}`
     setFeedbackMap((prev) => ({ ...prev, [messageId]: feedback }))
+  }
+
+  const handleOpenSources = (messageIndex: number) => {
+    setCurrentSourcesIndex(messageIndex)
+    setSourcesSheetOpen(true)
   }
 
   return (
@@ -486,17 +508,26 @@ export default function HomePage() {
                             {/* Assistant Actions */}
                             {message.role === "assistant" && (
                               <div className="flex items-center gap-1 mt-1 ml-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleOpenSources(index)}
+                                  title="查看来源"
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className={cn("h-6 w-6", feedbackMap[`${currentConversation}-${index}`] === 1 && "text-green-600")}
                                   onClick={() => handleFeedback(index, 1)}
                                 >
                                   <ThumbsUp className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className={cn("h-6 w-6", feedbackMap[`${currentConversation}-${index}`] === -1 && "text-red-600")}
                                   onClick={() => handleFeedback(index, -1)}
                                 >
@@ -548,41 +579,6 @@ export default function HomePage() {
                   )}
                 </div>
               </ScrollArea>
-
-              {/* Sources Panel - Always visible if sources exist */}
-              {sources.length > 0 && (
-                <div className="border-t bg-muted/20 px-4 py-3">
-                  <div className="max-w-3xl mx-auto">
-                    <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      <FileText className="h-3 w-3" />
-                      参考来源
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                      {sources.map((source, i) => (
-                        <div 
-                          key={i} 
-                          className="flex-shrink-0 w-60 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer group"
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="p-1.5 rounded-md bg-primary/10 text-primary">
-                              <FileText className="h-3.5 w-3.5" />
-                            </div>
-                            <Badge variant="secondary" className="text-[10px] h-5">
-                              {(source.score * 100).toFixed(0)}% 匹配
-                            </Badge>
-                          </div>
-                          <div className="text-xs font-medium line-clamp-2 mb-1" title={source.document_id}>
-                            文档 ID: {source.document_id.slice(0, 8)}...
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            分块 ID: {source.chunk_id ? source.chunk_id.slice(0, 8) : 'N/A'}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Input Area */}
               <div className="p-4 bg-background border-t">
@@ -818,7 +814,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-            
+
             {uploading && (
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
@@ -840,6 +836,56 @@ export default function HomePage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Sources Sheet */}
+        <Sheet open={sourcesSheetOpen} onOpenChange={setSourcesSheetOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                参考来源
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-4">
+              {currentSourcesIndex !== null && sourcesMap[currentSourcesIndex]?.length > 0 ? (
+                sourcesMap[currentSourcesIndex]?.map((source, i) => (
+                  <div
+                    key={i}
+                    className="p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                          <FileText className="h-3.5 w-3.5" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">
+                            {source.title || `文档 ${source.document_id.slice(0, 8)}...`}
+                          </div>
+                          <Badge variant="secondary" className="text-[10px] h-5 mt-1">
+                            {(source.score * 100).toFixed(0)}% 匹配
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Render HTML content if available */}
+                    {source.html_content && (
+                      <div
+                        className="text-xs prose prose-sm max-w-none dark:prose-invert border-t pt-3 mt-3"
+                        dangerouslySetInnerHTML={{ __html: source.html_content }}
+                      />
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  暂无来源信息
+                </div>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </TooltipProvider>
   )

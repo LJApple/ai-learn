@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.models.user import User
 from app.models.conversation import Conversation, Message
+from app.models.document import Document
 from app.services.llm import embedding_service, rerank_service, llm_service
 from app.services.vector import milvus_service
 
@@ -187,8 +188,8 @@ class QAService:
             docs=docs,
         )
 
-        # Format sources
-        sources = self._format_sources(docs)
+        # Format sources with HTML content
+        sources = await self._format_sources(db, docs)
 
         return {
             "answer": answer,
@@ -240,29 +241,56 @@ class QAService:
             parts.append(doc.get("content", ""))
         return "\n\n".join(parts)
 
-    def _format_sources(self, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def _format_sources(
+        self,
+        db: AsyncSession,
+        docs: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Format sources for response.
 
         Args:
+            db: Database session
             docs: Retrieved documents
 
         Returns:
-            Formatted sources list
+            Formatted sources list with HTML content
         """
         sources = []
         seen_docs = set()
 
+        # Collect unique document IDs
+        doc_ids = [doc.get("document_id") for doc in docs if doc.get("document_id")]
+        doc_ids = list(set(doc_ids))
+
+        # Batch query document metadata
+        if doc_ids:
+            result = await db.execute(
+                select(Document).where(Document.id.in_(doc_ids))
+            )
+            documents_map = {str(doc.id): doc for doc in result.scalars().all()}
+
         for doc in docs:
             doc_id = doc.get("document_id")
             if doc_id and doc_id not in seen_docs:
-                sources.append(
-                    {
-                        "document_id": doc_id,
-                        "chunk_id": doc.get("chunk_id"),
-                        "score": doc.get("score", 0),
-                        "rerank_score": doc.get("rerank_score"),
-                    }
-                )
+                source_data = {
+                    "document_id": doc_id,
+                    "chunk_id": doc.get("chunk_id"),
+                    "score": doc.get("score", 0),
+                    "rerank_score": doc.get("rerank_score"),
+                }
+
+                # Add HTML content from document metadata if available
+                if doc_id in documents_map:
+                    document = documents_map[doc_id]
+                    if document.doc_metadata:
+                        source_data["title"] = document.title
+                        # Get original HTML from metadata
+                        original_html = document.doc_metadata.get("original_html", "")
+                        if original_html:
+                            source_data["html_content"] = original_html
+                            source_data["has_images"] = document.doc_metadata.get("has_images", False)
+
+                sources.append(source_data)
                 seen_docs.add(doc_id)
 
         return sources
@@ -313,7 +341,7 @@ class QAService:
             answer: Assistant answer
             docs: Retrieved documents for sources
         """
-        sources = self._format_sources(docs)
+        sources = await self._format_sources(db, docs)
 
         # User message
         user_msg = Message(

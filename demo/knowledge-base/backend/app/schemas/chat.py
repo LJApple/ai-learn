@@ -13,6 +13,9 @@ class SourceInfo(BaseModel):
     chunk_id: str | None = None
     score: float
     rerank_score: float | None = None
+    title: str | None = None
+    html_content: str | None = None
+    has_images: bool | None = None
 
 
 class ChatRequest(BaseModel):
